@@ -16,6 +16,7 @@ public class ScoreSystem : MonoBehaviour
     {
         score += Time.deltaTime * scoreMultiplier;
         scoreText.text = Mathf.RoundToInt(score).ToString();
+        
     }
 
 
