@@ -9,6 +9,8 @@ public class MainMenu : MonoBehaviour
     [SerializeField] TMP_Text highScoreText;
     [SerializeField] TMP_Text lastScoreText;
     [SerializeField] TMP_Text energyText;
+    [SerializeField] TMP_Text playButtonText;
+    [SerializeField] Color deactivatedPlayButtonTextColor;
     [SerializeField] AndroidNotificationHandler androidNotificationHandler;
     [SerializeField] int maxEnergy;
     [SerializeField] int energyRechargeDuration;
@@ -18,15 +20,30 @@ public class MainMenu : MonoBehaviour
     public const string EnergyKey = "Energy";
     public const string EnergyReadyKey = "EnergyReady";
 
-
+    Color currentPlayButtonTextColor;
 
     void Start()
     {
+        OnApplicationFocus(true);
+    }
+
+
+    void OnApplicationFocus(bool hasFocus)
+    {
+        if (!hasFocus)
+        {
+            return;
+        }
+
+        CancelInvoke();
+
         int highScore = PlayerPrefs.GetInt(ScoreSystem.highScoreKey, 0);
         int lastScore = PlayerPrefs.GetInt(ScoreSystem.lastScoreKey, 0);
 
         highScoreText.text = "High Score:\n" + highScore;
         lastScoreText.text = "Last Score:\n" + lastScore;
+
+        currentPlayButtonTextColor = playButtonText.color;
 
         energy = PlayerPrefs.GetInt(EnergyKey, maxEnergy);
 
@@ -46,10 +63,24 @@ public class MainMenu : MonoBehaviour
                 energy = maxEnergy;
                 PlayerPrefs.SetInt(EnergyKey, energy);
             }
+            else
+            {
+                playButtonText.color = deactivatedPlayButtonTextColor;
+                Invoke(nameof(EnergyRecharge), (energyReady - DateTime.Now).Seconds);
+            }
         }
 
         energyText.text = "Energy:\n" + energy;
 
+    }
+
+
+    void EnergyRecharge()
+    {
+        playButtonText.color = currentPlayButtonTextColor;
+        energy = maxEnergy;
+        PlayerPrefs.SetInt(EnergyKey, energy);
+        energyText.text = "Energy:\n" + energy;
     }
 
     public void Play()
