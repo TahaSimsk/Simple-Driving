@@ -10,11 +10,6 @@ public class Car : MonoBehaviour
 
     int steerValue;
 
-    void Start()
-    {
-        
-    }
-
 
     void Update()
     {
