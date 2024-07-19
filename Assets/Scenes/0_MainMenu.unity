@@ -1142,7 +1142,7 @@ MonoBehaviour:
   deactivatedPlayButtonTextColor: {r: 0.2924528, g: 0.2924528, b: 0.2924528, a: 0.5019608}
   androidNotificationHandler: {fileID: 2056727623}
   maxEnergy: 5
-  energyRechargeDuration: 1
+  energyRechargeTimeInSeconds: 60
 --- !u!114 &2056727623
 MonoBehaviour:
   m_ObjectHideFlags: 0

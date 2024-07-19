@@ -6,30 +6,37 @@ public class ScoreSystem : MonoBehaviour
     [SerializeField] TMP_Text scoreText;
     [SerializeField] float scoreMultiplier = 1f;
 
-    public const string highScoreKey = "HighScore";
-    public const string lastScoreKey = "LastScore";
+    public const string HIGHSCORE_KEY = "HighScore";
+    public const string LASTSCORE_KEY = "LastScore";
 
     [HideInInspector] public float score;
-    [HideInInspector] public float score2 = 5f;
 
     void Update()
     {
-        score += Time.deltaTime * scoreMultiplier;
-        scoreText.text = Mathf.RoundToInt(score).ToString();
-        
+        IncrementScoreAndUpdateText();
+
     }
 
+    private void IncrementScoreAndUpdateText()
+    {
+        score += Time.deltaTime * scoreMultiplier;
+        scoreText.text = Mathf.RoundToInt(score).ToString();
+    }
 
     void OnDestroy()
     {
-        int currentHighScore = PlayerPrefs.GetInt(highScoreKey, 0);
+        SetLastAndHighScore();
+    }
 
-        PlayerPrefs.SetInt(lastScoreKey, Mathf.RoundToInt(score));
+    private void SetLastAndHighScore()
+    {
+        int currentHighScore = PlayerPrefs.GetInt(HIGHSCORE_KEY, 0);
+
+        PlayerPrefs.SetInt(LASTSCORE_KEY, Mathf.RoundToInt(score));
 
         if (score > currentHighScore)
         {
-            PlayerPrefs.SetInt(highScoreKey, Mathf.RoundToInt(score));
+            PlayerPrefs.SetInt(HIGHSCORE_KEY, Mathf.RoundToInt(score));
         }
     }
-
 }

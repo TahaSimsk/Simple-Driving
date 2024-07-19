@@ -13,8 +13,8 @@ public class GameOverMenu : MonoBehaviour
 
     void Start()
     {
-        youScoredText.text = "You Scored" + "\n" + PlayerPrefs.GetInt(ScoreSystem.lastScoreKey, 0);
-        highScoreText.text = "High Score:" + "\n" + PlayerPrefs.GetInt(ScoreSystem.highScoreKey, 0);
+        youScoredText.text = "You Scored" + "\n" + PlayerPrefs.GetInt(ScoreSystem.LASTSCORE_KEY, 0);
+        highScoreText.text = "High Score:" + "\n" + PlayerPrefs.GetInt(ScoreSystem.HIGHSCORE_KEY, 0);
         
     }
 

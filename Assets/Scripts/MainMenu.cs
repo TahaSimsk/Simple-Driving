@@ -2,6 +2,7 @@ using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Timeline;
 using UnityEngine.UI;
 
 public class MainMenu : MonoBehaviour
@@ -13,14 +14,20 @@ public class MainMenu : MonoBehaviour
     [SerializeField] Color deactivatedPlayButtonTextColor;
     [SerializeField] AndroidNotificationHandler androidNotificationHandler;
     [SerializeField] int maxEnergy;
-    [SerializeField] int energyRechargeDuration;
+    [SerializeField] int energyRechargeTimeInSeconds;
 
     int energy;
 
-    public const string EnergyKey = "Energy";
-    public const string EnergyReadyKey = "EnergyReady";
+    public const string ENERGY_KEY = "Energy";
+    public const string DATETORESETENERGY_KEY = "EnergyReady";
 
     Color currentPlayButtonTextColor;
+
+    private void Awake()
+    {
+        currentPlayButtonTextColor = playButtonText.color;
+        Application.targetFrameRate = 120;
+    }
 
     void Start()
     {
@@ -37,51 +44,70 @@ public class MainMenu : MonoBehaviour
 
         CancelInvoke();
 
-        int highScore = PlayerPrefs.GetInt(ScoreSystem.highScoreKey, 0);
-        int lastScore = PlayerPrefs.GetInt(ScoreSystem.lastScoreKey, 0);
+        UpdateLastAndHighScoreTexts();
+
+        HandleEnergyRecharge();
+
+    }
+
+
+    private void UpdateLastAndHighScoreTexts()
+    {
+        int highScore = PlayerPrefs.GetInt(ScoreSystem.HIGHSCORE_KEY, 0);
+        int lastScore = PlayerPrefs.GetInt(ScoreSystem.LASTSCORE_KEY, 0);
 
         highScoreText.text = "High Score:\n" + highScore;
         lastScoreText.text = "Last Score:\n" + lastScore;
+    }
 
-        currentPlayButtonTextColor = playButtonText.color;
 
-        energy = PlayerPrefs.GetInt(EnergyKey, maxEnergy);
+    void HandleEnergyRecharge()
+    {
+        energy = PlayerPrefs.GetInt(ENERGY_KEY, maxEnergy);
 
-        if (energy == 0)
+        if (energy >= maxEnergy)
         {
-            string energyReadyString = PlayerPrefs.GetString(EnergyReadyKey, string.Empty);
-
-            if (energyReadyString == string.Empty)
-            {
-                return;
-            }
-
-            DateTime energyReady = DateTime.Parse(energyReadyString);
-
-            if (DateTime.Now > energyReady)
-            {
-                energy = maxEnergy;
-                PlayerPrefs.SetInt(EnergyKey, energy);
-            }
-            else
-            {
-                playButtonText.color = deactivatedPlayButtonTextColor;
-                Invoke(nameof(EnergyRecharge), (energyReady - DateTime.Now).Seconds);
-            }
+            energyText.text = "Energy:\n" + energy;
+            return;
         }
 
+        string dateToResetEnergy_String = PlayerPrefs.GetString(DATETORESETENERGY_KEY, string.Empty);
+
+        if (dateToResetEnergy_String == string.Empty)
+        {
+            return;
+        }
+
+        DateTime dateToResetEnergy_Datetime = DateTime.Parse(dateToResetEnergy_String);
+        double secondsSinceLastEnergyReset = (DateTime.Now - dateToResetEnergy_Datetime).TotalSeconds;
+
+        if (secondsSinceLastEnergyReset >= 0)
+        {
+            double totalSecondsIncludingRechargeTime = energyRechargeTimeInSeconds + secondsSinceLastEnergyReset;
+            double numberOfFullEnergyCharges = totalSecondsIncludingRechargeTime / energyRechargeTimeInSeconds;
+            energy += Mathf.FloorToInt((float)numberOfFullEnergyCharges);
+            double remainingSecondsAfterFullCharges = totalSecondsIncludingRechargeTime % energyRechargeTimeInSeconds;
+            double secondsUntilNextEnergyReset = energyRechargeTimeInSeconds - remainingSecondsAfterFullCharges;
+
+            if (energy >= maxEnergy)
+            {
+                energy = maxEnergy;
+                secondsUntilNextEnergyReset = energyRechargeTimeInSeconds;
+            }
+
+            PlayerPrefs.SetInt(ENERGY_KEY, energy);
+            DateTime dateToResetEnergy_DateTime = DateTime.Now.AddSeconds(secondsUntilNextEnergyReset);
+            PlayerPrefs.SetString(DATETORESETENERGY_KEY, dateToResetEnergy_DateTime.ToString());
+            Invoke(nameof(HandleEnergyRecharge), (float)secondsUntilNextEnergyReset);
+        }
+        else
+        {
+            Invoke(nameof(HandleEnergyRecharge), (dateToResetEnergy_Datetime - DateTime.Now).Seconds);
+        }
         energyText.text = "Energy:\n" + energy;
-
+        HandlePlayButtonColor();
     }
-
-
-    void EnergyRecharge()
-    {
-        playButtonText.color = currentPlayButtonTextColor;
-        energy = maxEnergy;
-        PlayerPrefs.SetInt(EnergyKey, energy);
-        energyText.text = "Energy:\n" + energy;
-    }
+  
 
     public void Play()
     {
@@ -90,28 +116,54 @@ public class MainMenu : MonoBehaviour
             return;
         }
 
+        if (energy >= maxEnergy)
+        {
+
+            DateTime dateToResetEnergy_DateTime = DateTime.Now.AddSeconds(energyRechargeTimeInSeconds);
+            PlayerPrefs.SetString(DATETORESETENERGY_KEY, dateToResetEnergy_DateTime.ToString());
+        }
+
         energy--;
 
-        PlayerPrefs.SetInt(EnergyKey, energy);
+        PlayerPrefs.SetInt(ENERGY_KEY, energy);
 
-        if (energy == 0)
-        {
-            DateTime energyReady = DateTime.Now.AddMinutes(energyRechargeDuration);
-            PlayerPrefs.SetString(EnergyReadyKey, energyReady.ToString());
-#if UNITY_ANDROID
-            androidNotificationHandler.ScheduleNotification(energyReady);
-#endif
-        }
+        SendNotifications();
+
+        HandlePlayButtonColor();
 
         SceneManager.LoadScene(1);
     }
 
 
+    void SendNotifications()
+    {
+#if UNITY_ANDROID
+        if (energy == 0)
+        {
+            string message = "Your energy has recharged, come back to play again!";
+            DateTime dateWhenAllEnergyRecharged = DateTime.Now.AddSeconds(energyRechargeTimeInSeconds * maxEnergy);
+            androidNotificationHandler.ScheduleNotification(dateWhenAllEnergyRecharged,message);
+
+            var halfEnergy = Mathf.RoundToInt(maxEnergy / 2);
+            string message2 = $"{halfEnergy} available charges, come back to play again!";
+            var halfEnergyRechargeTime = energyRechargeTimeInSeconds * halfEnergy;
+            DateTime dateWhenHalfEnergyRecharged = DateTime.Now.AddSeconds(halfEnergyRechargeTime);
+            androidNotificationHandler.ScheduleNotification(dateWhenHalfEnergyRecharged, message2);
+        }
+#endif
+    }
 
 
-
-
-
-
+    void HandlePlayButtonColor()
+    {
+        if (energy > 0)
+        {
+            playButtonText.color = currentPlayButtonTextColor;
+        }
+        else
+        {
+            playButtonText.color = deactivatedPlayButtonTextColor;
+        }
+    }
 
 }
